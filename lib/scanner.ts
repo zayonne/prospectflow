@@ -3,6 +3,7 @@ export interface ScannedProspect {
   boutique_name: string
   score: number
   label: string
+  issues: string[]
   issue_principale: string
 }
 
@@ -63,6 +64,7 @@ export async function scanSingle(url: string): Promise<ScannedProspect | null> {
       boutique_name: extractBoutiqueName(url),
       score,
       label,
+      issues: data.issues.map(i => i.message),
       issue_principale: data.issues[0]?.message ?? 'No issues detected',
     }
   } catch (e) {
