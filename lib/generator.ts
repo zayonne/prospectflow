@@ -3,12 +3,11 @@ import Anthropic from '@anthropic-ai/sdk'
 export interface GeneratedEmail {
   objet: string
   body: string
-  pitch_type: 'audit_297_agressif' | 'audit_297_standard' | 'mcp_upsell'
+  pitch_type: 'audit_297' | 'mcp_upsell'
 }
 
 export function getPitchType(score: number): GeneratedEmail['pitch_type'] {
-  if (score < 60) return 'audit_297_agressif'
-  if (score <= 75) return 'audit_297_standard'
+  if (score <= 75) return 'audit_297'
   return 'mcp_upsell'
 }
 
@@ -32,12 +31,74 @@ export async function generateEmail(
   const message = await client.messages.create({
     model: 'claude-sonnet-4-5',
     max_tokens: 400,
-    system:
-      "Tu es un expert en prospection B2B pour l'e-commerce francais, specialise dans l'agentic commerce. Tu travailles pour AgentReady — l'outil qui mesure si une boutique Shopify est visible par les agents IA comme ChatGPT Shopping, Perplexity et Google AI. Ton objectif : rediger des emails de prospection courts, percutants et personnalises qui generent des reponses de proprietaires de boutiques Shopify francaises. Regles absolues : Commencer par Bonjour suivi d une virgule et un saut de ligne. Deuxieme ligne = accroche choc basee sur le score reel et les problemes detectes. Rester percutant et professionnel. Mentionner le score exact et au moins 2 problemes critiques detectes. Traduire les problemes techniques en pertes business concretes : ventes perdues, invisibilite IA. Maximum 5 lignes de corps — chaque mot compte. Un seul CTA : obtenir le rapport complet a 297 euros OU scan gratuit selon l'angle. Creer l urgence sans etre agressif — les concurrents s optimisent maintenant. Jamais de formule generique. Signature : Adil — AgentReady / adil@agentreadyscore.com / agentreadyscore.com",
+    system: `[C] — CONTEXTE
+Tu es un expert en agentic commerce et en prospection B2C e-commerce.
+Tu rédiges des emails cold outreach pour AgentReady — un outil qui scanne les boutiques Shopify et mesure leur lisibilité pour les agents IA acheteurs (ChatGPT Shopping, Perplexity, Google AI).
+Le destinataire est un propriétaire de boutique Shopify française — souvent une créatrice indépendante, un artisan, une TPE. Il/elle ne connaît pas forcément l'agentic commerce.
+L'email est envoyé depuis adil@agentreadyscore.com — une vraie personne, pas un bot.
+
+[V] — VISION
+L'objectif de l'email est simple : montrer qu'on a vraiment analysé leur boutique, identifier leur problème principal en langage concret, et proposer une solution claire à 297€.
+L'email doit donner l'impression d'avoir été écrit par un expert qui a regardé leur boutique — pas d'un outil automatisé qui envoie du mass mailing.
+Le ton est celui d'un consultant bienveillant et direct — pas d'un vendeur agressif.
+
+[T] — TÂCHES
+Tu dois :
+1. Rédiger un objet email court et personnalisé (max 60 caractères)
+2. Rédiger un body email factuel et concis (max 5 lignes)
+3. Mentionner le score exact de la boutique
+4. Expliquer l'issue principale en langage marchand (pas technique)
+5. Terminer par un CTA unique et clair
+
+[O] — OUTPUTS
+Format de sortie STRICT — JSON uniquement, rien d'autre :
+{
+  "objet": "string — max 60 caractères",
+  "body": "string — max 5 lignes séparées par \\n\\n"
+}
+
+Règles de format :
+- Body commence toujours par "Bonjour,"
+- Body se termine toujours par la signature : "Adil — AgentReady\\nadil@agentreadyscore.com\\nagentreadyscore.com"
+- Pas de markdown, pas de HTML dans le body
+- Jamais de caractères spéciaux dans l'objet (pas de —, pas de →)
+- Toujours du vouvoiement
+
+[G] — GUARDRAILS
+MOTS ET FORMULATIONS INTERDITS dans le body et l'objet :
+- "chaque jour / chaque semaine / chaque mois"
+- "vous perdez" / "pertes de ventes" / "manque à gagner"
+- "avant que l'écart se creuse" / "définitivement" / "irréversible"
+- "vos concurrents vous écrasent" / "vos concurrents captent"
+- "urgence" / "maintenant" / "immédiatement" / "rapidement"
+- "Vous attendez quoi ?" / "Vous réglez ça cette semaine ?"
+- "parts de marché perdues" / "le marché bascule"
+- "Réponse rapide souhaitée"
+- "les 50 premiers" / "offre limitée"
+- Statistiques inventées
+- Formules publicitaires génériques`,
     messages: [
       {
         role: 'user',
-        content: `Boutique : ${boutique_name}\nURL : ${url}\nScore ARS : ${score}/100\nIssues detectees (${issues.length}) :\n${issues.map((iss, i) => `${i + 1}. ${iss}`).join('\n')}\nAngle : ${pitch_type}\n\nGenere un email avec Objet max 60 caracteres et Body max 5 lignes.\n\nFormat JSON strict : {"objet": "...", "body": "..."}`,
+        content: `Boutique : ${boutique_name}
+URL : ${url}
+Score ARS : ${score}/100
+Issue principale (technique) : ${issue_principale}
+Pitch type : ${pitch_type}
+
+Traduis l'issue technique en langage marchand selon ce mapping :
+- "No barcode or SKU" → "vos produits n'ont pas de référence produit — les agents IA ne peuvent pas les identifier"
+- "Description under 100 chars" → "vos descriptions sont trop courtes pour être comprises par les agents IA"
+- "No meaningful variants" → "vos options produit (tailles, couleurs) ne sont pas lisibles par les agents IA"
+- "No MCP endpoint" → "votre boutique n'est pas connectée aux agents IA acheteurs"
+- "Majority of products lack shipping info" → "vos informations de livraison sont absentes — critère éliminatoire pour les agents IA"
+- "Return policy absent" → "votre politique de retour est absente — les agents IA éliminent les boutiques sans cette information"
+
+Pitch types :
+- "audit_297" → CTA : "Je peux corriger ça en 48h pour 297€."
+- "mcp_upsell" → CTA : "Je peux vous expliquer comment activer cette connexion."
+
+Génère UNIQUEMENT le JSON — aucun texte avant ou après.`,
       },
     ],
   })
@@ -50,7 +111,11 @@ export async function generateEmail(
     const parsed = JSON.parse(cleaned) as { objet: string; body: string }
     return { objet: parsed.objet, body: parsed.body, pitch_type }
   } catch {
-    return { objet: 'ProspectFlow — votre boutique', body: rawText, pitch_type }
+    return {
+      objet: `J'ai scanné ${url} — score ${score}/100`,
+      body: `Bonjour,\n\nJ'ai analysé ${url} avec AgentReady — score ${score}/100.\n\nLe problème principal : ${issue_principale}.\n\nJe peux corriger ça en 48h pour 297€.\n\nAdil — AgentReady\nadil@agentreadyscore.com\nagentreadyscore.com`,
+      pitch_type,
+    }
   }
 }
 
