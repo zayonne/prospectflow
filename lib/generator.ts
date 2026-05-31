@@ -26,6 +26,7 @@ export async function generateEmail(
   if (!apiKey) throw new Error('Missing environment variable: ANTHROPIC_API_KEY')
 
   const pitch_type = getPitchType(score)
+  const shopUrlEncoded = encodeURIComponent(url)
   const client = new Anthropic({ apiKey })
 
   const message = await client.messages.create({
@@ -95,7 +96,7 @@ Traduis l'issue technique en langage marchand selon ce mapping :
 - "Return policy absent" → "votre politique de retour est absente — les agents IA éliminent les boutiques sans cette information"
 
 Pitch types :
-- "audit_297" → CTA : "Je peux corriger ça en 48h pour 297€."
+- "audit_297" → CTA : "Voici votre rapport gratuit : https://agentreadyscore.com/?url=${shopUrlEncoded}"
 - "mcp_upsell" → CTA : "Je peux vous expliquer comment activer cette connexion."
 
 Génère UNIQUEMENT le JSON — aucun texte avant ou après.`,
