@@ -77,7 +77,9 @@ MOTS ET FORMULATIONS INTERDITS dans le body et l'objet :
 - "Réponse rapide souhaitée"
 - "les 50 premiers" / "offre limitée"
 - Statistiques inventées
-- Formules publicitaires génériques`,
+- Formules publicitaires génériques
+- "297€" / "297 €" / tout montant en euros
+- Toute mention de tarif ou de prix dans le body`,
     messages: [
       {
         role: 'user',
