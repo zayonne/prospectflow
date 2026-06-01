@@ -3,11 +3,11 @@ import Anthropic from '@anthropic-ai/sdk'
 export interface GeneratedEmail {
   objet: string
   body: string
-  pitch_type: 'audit_297' | 'mcp_upsell'
+  pitch_type: 'audit_free' | 'mcp_upsell'
 }
 
 export function getPitchType(score: number): GeneratedEmail['pitch_type'] {
-  if (score <= 75) return 'audit_297'
+  if (score <= 75) return 'audit_free'
   return 'mcp_upsell'
 }
 
@@ -39,7 +39,7 @@ Le destinataire est un propriétaire de boutique Shopify française — souvent 
 L'email est envoyé depuis adil@agentreadyscore.com — une vraie personne, pas un bot.
 
 [V] — VISION
-L'objectif de l'email est simple : montrer qu'on a vraiment analysé leur boutique, identifier leur problème principal en langage concret, et proposer une solution claire à 297€.
+L'objectif de l'email est simple : montrer qu'on a vraiment analysé leur boutique, identifier leur problème principal en langage concret, et proposer une piste d'amélioration concrète.
 L'email doit donner l'impression d'avoir été écrit par un expert qui a regardé leur boutique — pas d'un outil automatisé qui envoie du mass mailing.
 Le ton est celui d'un consultant bienveillant et direct — pas d'un vendeur agressif.
 
@@ -98,7 +98,7 @@ Traduis l'issue technique en langage marchand selon ce mapping :
 - "Return policy absent" → "votre politique de retour est absente — les agents IA éliminent les boutiques sans cette information"
 
 Pitch types :
-- "audit_297" → CTA : "Voici votre rapport gratuit : https://agentreadyscore.com/?url=${shopUrlEncoded}"
+- "audit_free" → CTA : "Voici votre rapport gratuit : https://agentreadyscore.com/?url=${shopUrlEncoded}"
 - "mcp_upsell" → CTA : "Je peux vous expliquer comment activer cette connexion."
 
 Génère UNIQUEMENT le JSON — aucun texte avant ou après.`,
@@ -116,7 +116,7 @@ Génère UNIQUEMENT le JSON — aucun texte avant ou après.`,
   } catch {
     return {
       objet: `J'ai scanné ${url} — score ${score}/100`,
-      body: `Bonjour,\n\nJ'ai analysé ${url} avec AgentReady — score ${score}/100.\n\nLe problème principal : ${issue_principale}.\n\nJe peux corriger ça en 48h pour 297€.\n\nAdil — AgentReady\nadil@agentreadyscore.com\nagentreadyscore.com`,
+      body: `Bonjour,\n\nJ'ai analysé ${url} avec AgentReady — score ${score}/100.\n\nLe problème principal : ${issue_principale}.\n\nJe peux t'aider à corriger ça.\n\nAdil — AgentReady\nadil@agentreadyscore.com\nagentreadyscore.com`,
       pitch_type,
     }
   }
