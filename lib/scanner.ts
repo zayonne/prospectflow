@@ -42,7 +42,7 @@ export async function scanSingle(url: string): Promise<ScannedProspect | null> {
   }
 
   try {
-    const res = await fetch(`${apiBase}/api/scan`, {
+    const res = await fetch(`${apiBase}/api/scan?skipReport=true`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ shopUrl: url }),
