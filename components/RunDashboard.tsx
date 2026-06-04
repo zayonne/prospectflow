@@ -7,12 +7,20 @@ import ProspectTable from '@/components/ProspectTable'
 const CATEGORIES = ['mode', 'bijoux', 'maison-deco', 'sante-beaute', 'sport', 'autre']
 const VOLUMES = [10, 20, 50]
 
+const DORK_STRATEGIES = [
+  { value: 'standard',      label: 'Standard (myshopify.com)' },
+  { value: 'custom_domain', label: 'Custom domain (.fr)' },
+  { value: 'email_direct',  label: 'Email direct (gmail/hotmail)' },
+] as const
+type DorkStrategy = typeof DORK_STRATEGIES[number]['value']
+
 type Statut = 'idle' | 'running' | 'done' | 'error'
 
 export default function RunDashboard() {
   const [categorie, setCategorie] = useState('mode')
   const [keyword, setKeyword] = useState('')
   const [volume, setVolume] = useState(20)
+  const [dorkStrategy, setDorkStrategy] = useState<DorkStrategy>('standard')
   const [runId, setRunId] = useState<string | null>(null)
   const [runData, setRunData] = useState<Run | null>(null)
   const [prospects, setProspects] = useState<Prospect[]>([])
@@ -65,7 +73,7 @@ export default function RunDashboard() {
       const res = await fetch('/api/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categorie, keyword: keyword || undefined, volume }),
+        body: JSON.stringify({ categorie, keyword: keyword || undefined, volume, dork_strategy: dorkStrategy }),
       })
       const data = await res.json() as { runId: string }
       setRunId(data.runId)
@@ -155,6 +163,23 @@ export default function RunDashboard() {
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs text-gray-400 font-medium uppercase tracking-wide">
+            Stratégie de recherche
+          </label>
+          <select
+            value={dorkStrategy}
+            onChange={(e) => setDorkStrategy(e.target.value as DorkStrategy)}
+            className="w-full bg-gray-800 border border-gray-700 text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+          >
+            {DORK_STRATEGIES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex items-center gap-4">

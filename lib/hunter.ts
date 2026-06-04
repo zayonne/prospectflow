@@ -4,13 +4,31 @@ const TIMEOUT = 10_000
 const MAX_PAGES = 5
 const DELAY_MS = 1000
 
-const DORK_MAP: Record<string, string> = {
+const DORK_MAP_STANDARD: Record<string, string> = {
   mode: 'site:myshopify.com mode france',
   bijoux: 'site:myshopify.com bijoux france',
   'maison-deco': 'site:myshopify.com maison decoration france',
   'sante-beaute': 'site:myshopify.com cosmetiques beaute france',
   sport: 'site:myshopify.com sport france',
   autre: 'site:myshopify.com boutique france',
+}
+
+const DORK_MAP_CUSTOM_DOMAIN: Record<string, string> = {
+  mode: '"powered by shopify" mode site:.fr',
+  bijoux: '"powered by shopify" bijoux site:.fr',
+  'maison-deco': '"powered by shopify" maison decoration site:.fr',
+  'sante-beaute': '"powered by shopify" cosmetiques beaute site:.fr',
+  sport: '"powered by shopify" sport site:.fr',
+  autre: '"powered by shopify" boutique site:.fr',
+}
+
+const DORK_MAP_EMAIL_DIRECT: Record<string, string> = {
+  mode: 'mode shopify france "@gmail.com" OR "@hotmail.fr"',
+  bijoux: 'bijoux shopify france "@gmail.com" OR "@hotmail.fr"',
+  'maison-deco': 'maison decoration shopify france "@gmail.com" OR "@hotmail.fr"',
+  'sante-beaute': 'cosmetiques beaute shopify france "@gmail.com" OR "@hotmail.fr"',
+  sport: 'sport shopify france "@gmail.com" OR "@hotmail.fr"',
+  autre: 'boutique shopify france "@gmail.com" OR "@hotmail.fr"',
 }
 
 const VALID_TLD = /\.(fr|com|shop|store|net|io)$/i
@@ -24,11 +42,19 @@ interface SerpResponse {
   organic_results?: SerpResult[]
 }
 
-function buildQuery(categorie: string, keyword?: string): string {
+function buildQuery(
+  categorie: string,
+  keyword?: string,
+  dork_strategy: 'standard' | 'custom_domain' | 'email_direct' = 'standard',
+): string {
   if (categorie === 'autre' && keyword) {
     return `site:myshopify.com ${keyword} france`
   }
-  return DORK_MAP[categorie] ?? DORK_MAP['autre']
+  const map =
+    dork_strategy === 'custom_domain' ? DORK_MAP_CUSTOM_DOMAIN :
+    dork_strategy === 'email_direct'  ? DORK_MAP_EMAIL_DIRECT :
+    DORK_MAP_STANDARD
+  return map[categorie] ?? map['autre']
 }
 
 function extractDomain(url: string): string | null {
@@ -93,8 +119,9 @@ export async function huntShopifyStores(
   categorie: string,
   keyword?: string,
   volume?: number,
+  dork_strategy?: 'standard' | 'custom_domain' | 'email_direct',
 ): Promise<string[]> {
-  const query = buildQuery(categorie, keyword)
+  const query = buildQuery(categorie, keyword, dork_strategy)
   const target = volume ?? Infinity
   const seenDomains = new Set<string>()
   const verified: string[] = []

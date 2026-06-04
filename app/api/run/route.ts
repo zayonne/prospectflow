@@ -7,8 +7,8 @@ import supabase from '@/lib/supabase'
 import type { Prospect } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
-  const body = await request.json() as { categorie: string; keyword?: string; volume?: number }
-  const { categorie, keyword, volume } = body
+  const body = await request.json() as { categorie: string; keyword?: string; volume?: number; dork_strategy?: 'standard' | 'custom_domain' | 'email_direct' }
+  const { categorie, keyword, volume, dork_strategy } = body
 
   if (!categorie) {
     return NextResponse.json({ error: 'categorie is required' }, { status: 400 })
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
   ;(async () => {
     try {
-      const urls = await huntShopifyStores(categorie, keyword, volume ?? 20)
+      const urls = await huntShopifyStores(categorie, keyword, volume ?? 20, dork_strategy)
       const scanned = await scanStores(urls)
       const emailMap = await scrapeEmails(scanned.map(s => s.url))
       const emails = await generateEmails(
