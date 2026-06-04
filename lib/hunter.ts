@@ -1,67 +1,81 @@
-import { load } from 'cheerio'
+export const CATEGORIES = ['mode', 'bijoux', 'maison-deco', 'sante-beaute', 'sport', 'autre']
 
-export const CATEGORIES = ['mode', 'bijoux', 'maison-deco', 'sante-beaute', 'sport']
-
-const BASE_URL = 'https://www.annuaire-du-ecommerce.com'
-const HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-}
 const TIMEOUT = 10_000
 const MAX_PAGES = 5
+const DELAY_MS = 1000
 
-function extractShopDomain(srcset: string): string | null {
-  const decoded = decodeURIComponent(srcset)
-  const pattern = /https?:\/\/([a-zA-Z0-9\-.]+\.(?:com|fr|shop|net|io|store))\/cdn\/shop\//
-  let match = pattern.exec(decoded)
-  if (match) return match[1].replace('www.', '')
-  match = pattern.exec(srcset)
-  if (match) return match[1].replace('www.', '')
-  return null
+const DORK_MAP: Record<string, string> = {
+  mode: 'site:myshopify.com mode france',
+  bijoux: 'site:myshopify.com bijoux france',
+  'maison-deco': 'site:myshopify.com maison decoration france',
+  'sante-beaute': 'site:myshopify.com cosmetiques beaute france',
+  sport: 'site:myshopify.com sport france',
+  autre: 'site:myshopify.com boutique france',
 }
 
-async function scrapeCategoryPage(categorie: string, page: number): Promise<string[]> {
-  const url =
-    page > 1
-      ? `${BASE_URL}/sites/${categorie}?page=${page}`
-      : `${BASE_URL}/sites/${categorie}`
+const VALID_TLD = /\.(fr|com|shop|store|net|io)$/i
 
-  try {
-    const res = await fetch(url, {
-      headers: HEADERS,
-      signal: AbortSignal.timeout(TIMEOUT),
-    })
-    const html = await res.text()
-    const $ = load(html)
-    const domains: string[] = []
+interface SerpResult {
+  link?: string
+  displayed_link?: string
+}
 
-    $('a[href]').each((_, el) => {
-      const href = $(el).attr('href') ?? ''
-      if (!href.startsWith('/site/')) return
+interface SerpResponse {
+  organic_results?: SerpResult[]
+}
 
-      for (const img of $(el).find('img').toArray()) {
-        const $img = $(img)
-        const srcset =
-          $img.attr('srcSet') ?? $img.attr('srcset') ?? $img.attr('src') ?? ''
-        const domain = extractShopDomain(srcset)
-        if (domain) {
-          domains.push(domain)
-          break
-        }
-      }
-    })
-
-    return domains
-  } catch (e) {
-    console.error(`  Error on page ${page}: ${e}`)
-    return []
+function buildQuery(categorie: string, keyword?: string): string {
+  if (categorie === 'autre' && keyword) {
+    return `site:myshopify.com ${keyword} france`
   }
+  return DORK_MAP[categorie] ?? DORK_MAP['autre']
+}
+
+function extractDomain(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return null
+  }
+}
+
+function isShopUrl(url: string): boolean {
+  if (url.includes('myshopify.com')) return true
+  try {
+    const { hostname } = new URL(url)
+    return VALID_TLD.test(hostname)
+  } catch {
+    return false
+  }
+}
+
+async function fetchSerpPage(query: string, start: number): Promise<SerpResult[]> {
+  const key = process.env.SERPAPI_KEY
+  if (!key) throw new Error('SERPAPI_KEY environment variable is not set')
+
+  const params = new URLSearchParams({
+    q: query,
+    api_key: key,
+    num: '10',
+    hl: 'fr',
+    gl: 'fr',
+    start: String(start),
+  })
+
+  const res = await fetch(`https://serpapi.com/search.json?${params}`, {
+    signal: AbortSignal.timeout(TIMEOUT),
+  })
+
+  if (!res.ok) throw new Error(`SerpAPI error: ${res.status}`)
+
+  const data: SerpResponse = await res.json()
+  return data.organic_results ?? []
 }
 
 async function verifyUrl(url: string): Promise<boolean> {
   try {
     const res = await fetch(url, {
       method: 'HEAD',
-      headers: HEADERS,
       signal: AbortSignal.timeout(TIMEOUT),
       redirect: 'follow',
     })
@@ -80,36 +94,49 @@ export async function huntShopifyStores(
   keyword?: string,
   volume?: number,
 ): Promise<string[]> {
-  const seen = new Set<string>()
-  const verified: string[] = []
+  const query = buildQuery(categorie, keyword)
   const target = volume ?? Infinity
+  const seenDomains = new Set<string>()
+  const verified: string[] = []
 
-  for (let page = 1; page <= MAX_PAGES; page++) {
+  for (let page = 0; page < MAX_PAGES; page++) {
     if (verified.length >= target) break
 
-    const domains = await scrapeCategoryPage(categorie, page)
+    const start = page * 10
+    let results: SerpResult[]
 
-    if (domains.length === 0) break
+    try {
+      results = await fetchSerpPage(query, start)
+    } catch (e) {
+      console.error(`  SerpAPI error on page ${page + 1}: ${e}`)
+      break
+    }
+
+    if (results.length === 0) break
 
     let pageFound = 0
 
-    for (const domain of domains) {
-      if (seen.has(domain)) continue
-      seen.add(domain)
+    for (const result of results) {
+      if (verified.length >= target) break
 
-      const shopUrl = `https://${domain}`
+      const url = result.link
+      if (!url || !isShopUrl(url)) continue
+
+      const domain = extractDomain(url)
+      if (!domain || seenDomains.has(domain)) continue
+      seenDomains.add(domain)
+
+      const shopUrl = url.startsWith('http') ? url : `https://${domain}`
       if (await verifyUrl(shopUrl)) {
         verified.push(shopUrl)
         pageFound++
       }
-
-      if (verified.length >= target) break
     }
 
-    console.log(`Scanning page ${page} for category ${categorie}... found ${pageFound} shops`)
+    console.log(`Page ${page + 1} [${categorie}] — ${pageFound} shops found (total: ${verified.length})`)
 
-    if (page < MAX_PAGES && verified.length < target) {
-      await sleep(2000 + Math.random() * 2000)
+    if (page < MAX_PAGES - 1 && verified.length < target) {
+      await sleep(DELAY_MS)
     }
   }
 
