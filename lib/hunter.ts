@@ -14,12 +14,12 @@ const DORK_MAP_STANDARD: Record<string, string> = {
 }
 
 const DORK_MAP_CUSTOM_DOMAIN: Record<string, string> = {
-  mode: '"powered by shopify" mode site:.fr',
-  bijoux: '"powered by shopify" bijoux site:.fr',
-  'maison-deco': '"powered by shopify" maison decoration site:.fr',
-  'sante-beaute': '"powered by shopify" cosmetiques beaute site:.fr',
-  sport: '"powered by shopify" sport site:.fr',
-  autre: '"powered by shopify" boutique site:.fr',
+  mode: 'mode shopify site:.fr',
+  bijoux: 'bijoux shopify site:.fr',
+  'maison-deco': 'maison decoration shopify site:.fr',
+  'sante-beaute': 'cosmetiques beaute shopify site:.fr',
+  sport: 'sport shopify site:.fr',
+  autre: 'boutique shopify site:.fr',
 }
 
 const DORK_MAP_EMAIL_DIRECT: Record<string, string> = {
