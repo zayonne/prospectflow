@@ -24,6 +24,9 @@ interface AgentReadyResponse {
 function extractBoutiqueName(url: string): string {
   try {
     const hostname = new URL(url).hostname.replace(/^www\./, '')
+    if (hostname.includes('myshopify.com')) {
+      return hostname.split('.')[0]
+    }
     return hostname.replace(/\.[^.]+$/, '')
   } catch {
     return url

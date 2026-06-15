@@ -98,16 +98,24 @@ async function fetchSerpPage(query: string, start: number): Promise<SerpResult[]
   return data.organic_results ?? []
 }
 
-async function verifyUrl(url: string): Promise<boolean> {
+async function resolveUrl(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, {
       method: 'HEAD',
       signal: AbortSignal.timeout(TIMEOUT),
       redirect: 'follow',
     })
-    return res.status === 200
+    if (res.status !== 200) return null
+    if (url.includes('myshopify.com') && res.url) {
+      const resolvedHost = new URL(res.url).hostname
+      const originalHost = new URL(url).hostname
+      if (resolvedHost !== originalHost && !resolvedHost.includes('myshopify.com')) {
+        return `https://${resolvedHost}`
+      }
+    }
+    return url
   } catch {
-    return false
+    return null
   }
 }
 
@@ -154,8 +162,9 @@ export async function huntShopifyStores(
       seenDomains.add(domain)
 
       const shopUrl = url.startsWith('http') ? url : `https://${domain}`
-      if (await verifyUrl(shopUrl)) {
-        verified.push(shopUrl)
+      const resolved = await resolveUrl(shopUrl)
+      if (resolved) {
+        verified.push(resolved)
         pageFound++
       }
     }
