@@ -47,8 +47,16 @@ function buildQuery(
   keyword?: string,
   dork_strategy: 'standard' | 'custom_domain' | 'email_direct' = 'standard',
 ): string {
-  if (categorie === 'autre' && keyword) {
-    return `site:myshopify.com ${keyword} france`
+  // Si un keyword est fourni, on construit une query centrée sur le keyword
+  if (keyword && keyword.trim().length > 0) {
+    const kw = keyword.trim()
+    if (dork_strategy === 'custom_domain') {
+      return `${kw} shopify site:.fr`
+    }
+    if (dork_strategy === 'email_direct') {
+      return `${kw} shopify france "@gmail.com" OR "@hotmail.fr"`
+    }
+    return `site:myshopify.com ${kw} france`
   }
   const map =
     dork_strategy === 'custom_domain' ? DORK_MAP_CUSTOM_DOMAIN :
